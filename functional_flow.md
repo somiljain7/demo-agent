@@ -60,7 +60,7 @@ This is a **LiveKit-based AI Voice Agent** system that enables real-time voice c
 │                    AGENT WORKER                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
 │  │  Speech-to-  │  │     LLM      │  │  Text-to-    │      │
-│  │     Text     │  │   (Groq)     │  │    Speech    │      │
+│  │     Text     │  │   (openAI)   │  │    Speech    │      │
 │  │  (Deepgram)  │  │              │  │  (Cartesia)  │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                          │                                   │
