@@ -158,16 +158,59 @@ class MarkdownToVectorDB:
         logger.info(f"Created {len(embeddings)} embeddings with dimension {len(embeddings[0])}")
         return embeddings
 
+    def delete_markdown_files(self):
+        """Delete all markdown files from the knowledge base directory"""
+        try:
+            md_files = []
+            md_extensions = ['.md', '.markdown']
+            
+            for ext in md_extensions:
+                md_files.extend(self.knowledge_base_dir.rglob(f"*{ext}"))
+            
+            if md_files:
+                logger.info(f"🗑️  Deleting {len(md_files)} markdown files from {self.knowledge_base_dir}")
+                for md_file in md_files:
+                    try:
+                        md_file.unlink()
+                        logger.debug(f"Deleted: {md_file}")
+                    except Exception as e:
+                        logger.error(f"Error deleting {md_file}: {e}")
+                logger.info("✅ All markdown files deleted successfully")
+                return True
+            else:
+                logger.info("ℹ️  No markdown files found to delete")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting markdown files: {e}")
+            return False
+
+    def delete_collection_if_exists(self):
+        """Delete the collection if it exists"""
+        try:
+            collections = self.qdrant_client.get_collections().collections
+            collection_exists = any(col.name == self.collection_name for col in collections)
+            
+            if collection_exists:
+                logger.info(f"🗑️  Deleting existing collection: {self.collection_name}")
+                self.qdrant_client.delete_collection(collection_name=self.collection_name)
+                logger.info("✅ Existing collection deleted successfully")
+                return True
+            else:
+                logger.info(f"ℹ️  Collection '{self.collection_name}' does not exist, creating new one")
+                return False
+        except Exception as e:
+            logger.warning(f"Error checking/deleting collection: {e}")
+            return False
+
     def setup_qdrant_collection(self, vector_size: int):
-        """Setup Qdrant collection"""
+        """Setup Qdrant collection (deletes old one if exists)"""
         logger.info(f"Setting up Qdrant collection: {self.collection_name}")
         
-        try:
-            # Try to delete existing collection
-            self.qdrant_client.delete_collection(collection_name=self.collection_name)
-            logger.info("Deleted existing collection")
-        except:
-            pass  # Collection might not exist
+        # Delete markdown files first
+        self.delete_markdown_files()
+        
+        # Delete existing collection if it exists
+        self.delete_collection_if_exists()
         
         # Create new collection
         self.qdrant_client.create_collection(
@@ -175,7 +218,7 @@ class MarkdownToVectorDB:
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
         
-        logger.info("Created new collection successfully")
+        logger.info("✅ Created new collection successfully")
 
     def upload_to_qdrant(self, chunks: List[Dict[str, Any]], embeddings: List[np.ndarray]):
         """Upload chunks and embeddings to Qdrant"""
@@ -224,7 +267,7 @@ class MarkdownToVectorDB:
             # Step 3: Create embeddings
             embeddings = self.create_embeddings(chunks)
             
-            # Step 4: Setup Qdrant collection
+            # Step 4: Setup Qdrant collection (this will delete old one)
             vector_size = len(embeddings[0])
             self.setup_qdrant_collection(vector_size)
             
@@ -272,15 +315,18 @@ class MarkdownToVectorDB:
         return results
 
 def init():
+    """Initialize and process markdown files into vector database"""
+    print("🔄 Initializing Markdown to Vector DB converter...")
+    print("   ⚠️  WARNING: This will DELETE all .md files in knowledge_base directory")
+    print("   ⚠️  WARNING: This will DELETE any existing collection with the same name")
+    
     converter = MarkdownToVectorDB(
-    knowledge_base_dir="knowledge_base",
-    collection_name="markdown_knowledge_base"
+        knowledge_base_dir="knowledge_base",
+        collection_name="markdown_knowledge_base"
     )
     success = converter.process_markdown_files()
     
-    if success:
-        print("\n🎉 Success! Your knowledge base is now in a vector database!")
-    return success,converter
+    return success, converter
 
 def main():
     """Main function"""
@@ -288,7 +334,7 @@ def main():
     print("=" * 60)
     
     # Initialize converter
-    success,converter = init()
+    success, converter = init()
     
     if success:
         print("\n🎉 Success! Your knowledge base is now in a vector database!")
@@ -301,12 +347,16 @@ def main():
         ]
         
         for query in test_queries:
-            results = converter.search_similar(query, limit=10)
             print(f"\n🔍 Search: '{query}'")
-            list_all_answer=""
             results = converter.search_similar(query, limit=10)
-            for i, result in enumerate(results, 5):
-                list_all_answer+="Title: {result['title']}\n"+"text : {result['text']}\n"
+            list_all_answer = ""
+            for i, result in enumerate(results, 1):
+                print(f"\n   Result {i}:")
+                print(f"   Title: {result['title']}")
+                print(f"   Score: {result['score']:.4f}")
+                print(f"   Source: {result['source']}")
+                print(f"   Text: {result['text']}")
+                list_all_answer += f"Title: {result['title']}\nText: {result['text']}\n\n"
     else:
         print("❌ Failed to process markdown files")
 
