@@ -6,7 +6,7 @@ from livekit import api
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
-import vector_db_init  
+
 load_dotenv()
 
 app = FastAPI(title="LiveKit AI Voice Agent API")
@@ -98,36 +98,7 @@ async def create_token(request: JoinRequest):
         raise HTTPException(status_code=500, detail=f"Failed to create token: {str(e)}")
 
 
-@app.post("/extract-knowledge-base")
-async def extract_knowledge_base(request: KnowledgeBaseRequest):
-    """Extract knowledge base from website URL"""
-    try:
-        from sitemap import WebsiteToMarkdownPipeline
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-        
-        # Run the scraping in a background thread to avoid blocking
-        def run_extraction():
-            pipeline = WebsiteToMarkdownPipeline(base_output_dir='knowledge_base')
-            pipeline.run(request.website_url, max_pages=request.max_pages)
-            success,converter=vector_db_init.init()
-            if success:
-                return {
-                    "status": "completed",
-                    "message": f"Successfully extracted knowledge base from {request.website_url} and pushed to vectorDB",
-                    "max_pages": request.max_pages,
-                    "output_dir": "knowledge_base"
-                }
 
-        # Execute in thread pool
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            result = await loop.run_in_executor(executor, run_extraction)
-        
-        return result
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to extract knowledge base: {str(e)}")
 
 
 @app.get("/demo", response_class=HTMLResponse)

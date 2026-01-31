@@ -3,6 +3,7 @@ import os
 import sys
 from typing import Optional
 from dotenv import load_dotenv
+from persona import get_criminal_mindset_prompt
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -23,20 +24,7 @@ logger = logging.getLogger("agent-worker")
 logging.basicConfig(level=logging.INFO)
 
 load_dotenv(".env")
-from vector_db_init import MarkdownToVectorDB
 
-def my_rag_lookup(query,limit=5):
-        # Initialize converter
-    converter = MarkdownToVectorDB(
-
-        knowledge_base_dir="knowledge_base",
-        collection_name="markdown_knowledge_base"
-    )
-    results = converter.search_similar(query, limit=limit)
-    list_all_answer=""
-    for i, result in enumerate(results, 5):
-        list_all_answer+="Title: {result['title']}\n"+"text : {result['text']}\n"
-    return list_all_answer
 
 
 class VoiceAssistant(Agent):
@@ -85,11 +73,7 @@ TONE: Professional yet friendly, helpful, and efficient. You're here to make the
     async def on_user_turn_completed(
         self, turn_ctx: ChatContext, new_message: ChatMessage,
     ) -> None:
-        rag_content = my_rag_lookup(new_message.text_content)
-        turn_ctx.add_message(
-            role="assistant", 
-            content=f"Additional information relevant to the user's next message: {rag_content}"
-        )
+        pass
 
 
 # Global VAD instance for efficiency
@@ -130,6 +114,12 @@ async def entrypoint(ctx: JobContext):
         tts_model = metadata.get("tts_model", tts_model)
     except Exception as e:
         logger.warning(f"Could not parse room metadata: {e}")
+
+    # Check for Riddler/Moriarty persona trigger
+    if instructions is None and "crime_type" in metadata or "riddler" in str(metadata).lower():
+        logger.info("Activating Riddler/Moriarty Persona")
+        instructions = get_criminal_mindset_prompt(metadata)
+
     
     # Initialize usage collector for metrics
     usage_collector = metrics.UsageCollector()
