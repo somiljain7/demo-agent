@@ -33,6 +33,7 @@ if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
 class JoinRequest(BaseModel):
     room_name: str
     participant_name: str
+    metadata: dict = {}
 
 
 class TokenResponse(BaseModel):
@@ -68,6 +69,35 @@ def root():
 async def create_token(request: JoinRequest):
     """Create access token for participant to join room"""
     try:
+        # Update room metadata if provided
+        if request.metadata:
+            import json
+            lkapi = api.LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+            meta_json = json.dumps(request.metadata)
+            
+            try:
+                # Try to create room with metadata (handles if it doesn't exist)
+                # If it exists, we might need to update it.
+                # Simplest check: List rooms to see if it exists
+                rooms = await lkapi.room.list_rooms(api.ListRoomsRequest(names=[request.room_name]))
+                
+                if rooms.rooms:
+                    # Update existing room
+                    await lkapi.room.update_room_metadata(api.UpdateRoomMetadataRequest(
+                        room=request.room_name,
+                        metadata=meta_json
+                    ))
+                else:
+                    # Create new room with metadata
+                    await lkapi.room.create_room(api.CreateRoomRequest(
+                        name=request.room_name,
+                        metadata=meta_json
+                    ))
+            except Exception as e:
+                print(f"Warning: Failed to update room metadata: {e}")
+            finally:
+                await lkapi.aclose()
+
         # Generate unique identity
         participant_identity = f"{request.participant_name}_{os.urandom(4).hex()}"
         
@@ -347,28 +377,6 @@ async def demo_page():
                 <span class="tech-badge">📞 LiveKit</span>
             </div>
 
-            <!-- Knowledge Base Extraction Section -->
-            <div class="kb-section">
-                <h2>📚 Knowledge Base Extraction</h2>
-                <p>Extract website content to create a knowledge base for your AI agent</p>
-                
-                <div class="form-group">
-                    <label for="websiteUrl">Website URL</label>
-                    <input type="url" id="websiteUrl" placeholder="https://example.com" value="">
-                </div>
-
-                <div class="form-group">
-                    <label for="maxPages">Max Pages to Extract</label>
-                    <input type="number" id="maxPages" placeholder="50" value="50" min="1" max="500">
-                </div>
-
-                <button class="btn-primary" onclick="extractKnowledgeBase()" id="extractBtn" style="background: #0ea5e9; margin-bottom: 0;">
-                    🔍 Extract Knowledge Base
-                </button>
-
-                <div id="extractionStatus" style="display: none; margin-top: 15px;"></div>
-            </div>
-
             <!-- Voice Chat Section -->
             <div class="section-divider">
                 <h2>🎙️ Voice Chat</h2>
@@ -386,6 +394,28 @@ async def demo_page():
             <div class="form-group">
                 <label for="userName">Your Name</label>
                 <input type="text" id="userName" placeholder="Enter your name" value="User">
+            </div>
+
+            <!-- Crime Scene Injection -->
+            <div class="kb-section" style="margin-top: 20px; border-color: #7c3aed; background: #faf5ff;">
+                <h2 style="color: #6d28d9;">🕵️‍♀️ Crime Scene Settings</h2>
+                <div class="form-group">
+                    <label>Crime Type</label>
+                    <input type="text" id="crimeType" placeholder="e.g. Bank Heist, Murder Mystery">
+                </div>
+                <div class="form-group">
+                    <label>Complexity</label>
+                    <select id="crimeComplexity" style="width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px;">
+                        <option value="">Normal</option>
+                        <option value="Low">Low</option>
+                        <option value="High">High</option>
+                        <option value="Impossible">Impossible</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Your Role</label>
+                    <input type="text" id="userRole" placeholder="e.g. Detective, Suspect" value="Detective">
+                </div>
             </div>
 
             <button class="btn-primary" onclick="joinCall()" id="joinBtn">
@@ -576,7 +606,12 @@ async def demo_page():
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             room_name: roomName,
-                            participant_name: userName
+                            participant_name: userName,
+                            metadata: {
+                                crime_type: document.getElementById('crimeType').value,
+                                complexity: document.getElementById('crimeComplexity').value,
+                                user_role: document.getElementById('userRole').value
+                            }
                         })
                     });
 

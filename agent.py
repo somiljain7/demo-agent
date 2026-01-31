@@ -98,6 +98,7 @@ async def entrypoint(ctx: JobContext):
     
     # Get configuration from room metadata if available
     room_metadata = ctx.room.metadata or "{}"
+    logger.info(f"RAW Room Metadata: {room_metadata}")
     
     # Parse metadata for custom instructions
     instructions = None
