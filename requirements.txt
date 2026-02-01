@@ -14,20 +14,11 @@ livekit-api>=0.6.0
 livekit-plugins-turn-detector
 livekit-plugins-noise-cancellation
 
-# Knowledge Base and Vector Search
-sentence-transformers>=2.2.2
-qdrant-client>=1.7.0
-
-# Web Scraping and Processing
-beautifulsoup4>=4.12.0
-html2text>=2020.1.16
-requests>=2.31.0
-
-# Machine Learning and NLP
-torch>=2.0.0
-transformers>=4.36.0
 numpy>=1.24.0
 
 # Utilities
 tqdm>=4.66.0
 pathlib>=1.0.1
+av
+
+numpy

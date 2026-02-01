@@ -76,25 +76,29 @@ async def create_token(request: JoinRequest):
             meta_json = json.dumps(request.metadata)
             
             try:
-                # Try to create room with metadata (handles if it doesn't exist)
-                # If it exists, we might need to update it.
-                # Simplest check: List rooms to see if it exists
-                rooms = await lkapi.room.list_rooms(api.ListRoomsRequest(names=[request.room_name]))
+                # Strategy: Try to create room first (ensures it exists and sets metadata)
+                # If it exists, this might fail or return the existing room (depending on API version).
+                # To be safe, we wrap in try/except and fallback to update.
+                print(f"Attempting to set metadata for room: {request.room_name}")
                 
-                if rooms.rooms:
-                    # Update existing room
+                try:
+                    await lkapi.room.create_room(api.CreateRoomRequest(
+                        name=request.room_name,
+                        metadata=meta_json,
+                        empty_timeout=10 * 60, # Keep alive for 10 mins if empty
+                    ))
+                    print(f"Created room '{request.room_name}' with metadata.")
+                except Exception as create_err:
+                    # If creation failed, assume it exists and try to update
+                    print(f"Room creation note (likely exists): {create_err}. Updating metadata...")
                     await lkapi.room.update_room_metadata(api.UpdateRoomMetadataRequest(
                         room=request.room_name,
                         metadata=meta_json
                     ))
-                else:
-                    # Create new room with metadata
-                    await lkapi.room.create_room(api.CreateRoomRequest(
-                        name=request.room_name,
-                        metadata=meta_json
-                    ))
+                    print(f"Updated metadata for room '{request.room_name}'.")
+                    
             except Exception as e:
-                print(f"Warning: Failed to update room metadata: {e}")
+                print(f"ERROR: Failed to set room metadata: {e}")
             finally:
                 await lkapi.aclose()
 
@@ -399,9 +403,24 @@ async def demo_page():
             <!-- Crime Scene Injection -->
             <div class="kb-section" style="margin-top: 20px; border-color: #7c3aed; background: #faf5ff;">
                 <h2 style="color: #6d28d9;">🕵️‍♀️ Crime Scene Settings</h2>
+                
+                <!-- Scenario Preset -->
+                <div class="form-group">
+                    <label>Scenario Preset</label>
+                    <select id="scenarioPreset" onchange="applyPreset()" style="width: 100%; padding: 14px; border: 2px solid #7c3aed; border-radius: 10px; background: #fff;">
+                        <option value="custom">Custom</option>
+                        <option value="indian_kidnap">Moriarty's Kidnapping (Indian Edition)</option>
+                        <option value="indian_bomb">Moriarty's Bombing Plot (Indian Edition)</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>Crime Type</label>
                     <input type="text" id="crimeType" placeholder="e.g. Bank Heist, Murder Mystery">
+                </div>
+                <div class="form-group">
+                    <label>Victim Name (if applicable)</label>
+                    <input type="text" id="victimName" placeholder="e.g. Priya, Rahul" value="">
                 </div>
                 <div class="form-group">
                     <label>Complexity</label>
@@ -416,6 +435,35 @@ async def demo_page():
                     <label>Your Role</label>
                     <input type="text" id="userRole" placeholder="e.g. Detective, Suspect" value="Detective">
                 </div>
+                <!-- Volume Control -->
+                <div class="form-group">
+                    <label>Background Music Volume (0 - 1)</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="range" id="bgVolume" min="0" max="1" step="0.1" value="0.2" oninput="document.getElementById('volValue').innerText = this.value">
+                        <span id="volValue">0.2</span>
+                    </div>
+                </div>
+
+                <script>
+                function applyPreset() {
+                    const preset = document.getElementById('scenarioPreset').value;
+                    if (preset === 'indian_kidnap') {
+                        document.getElementById('crimeType').value = 'Kidnapping (Indian Edition)';
+                        document.getElementById('victimName').value = 'Priya';
+                        document.getElementById('crimeComplexity').value = 'High';
+                        document.getElementById('userRole').value = 'Detective';
+                    } else if (preset === 'indian_bomb') {
+                        document.getElementById('crimeType').value = 'Bombing (Indian Edition)';
+                        document.getElementById('victimName').value = 'N/A';
+                        document.getElementById('crimeComplexity').value = 'Impossible';
+                        document.getElementById('userRole').value = 'Bomb Specialist';
+                    } else {
+                        document.getElementById('crimeType').value = '';
+                        document.getElementById('victimName').value = '';
+                        document.getElementById('crimeComplexity').value = '';
+                    }
+                }
+                </script>
             </div>
 
             <button class="btn-primary" onclick="joinCall()" id="joinBtn">
@@ -609,8 +657,10 @@ async def demo_page():
                             participant_name: userName,
                             metadata: {
                                 crime_type: document.getElementById('crimeType').value,
+                                victim_name: document.getElementById('victimName').value,
                                 complexity: document.getElementById('crimeComplexity').value,
-                                user_role: document.getElementById('userRole').value
+                                user_role: document.getElementById('userRole').value,
+                                bg_volume: document.getElementById('bgVolume').value
                             }
                         })
                     });
