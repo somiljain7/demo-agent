@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from livekit import api
 import os
@@ -63,6 +63,11 @@ def root():
             "extract_kb": "/extract-knowledge-base"
         }
     }
+
+
+@app.get("/bg.gif")
+async def get_background():
+    return FileResponse("bg.gif")
 
 
 @app.post("/token", response_model=TokenResponse)
@@ -146,233 +151,308 @@ async def demo_page():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AI Voice Agent Demo</title>
         <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400&display=swap" rel="stylesheet">
         <style>
+            :root {
+                --bg-color: #0d0d12;
+                --card-bg: rgba(20, 20, 25, 0.95);
+                --text-primary: #e0e0e0;
+                --text-secondary: #a0a0a0;
+                --gold-accent: #d4af37;
+                --gold-dim: #8a7224;
+                --blood-red: #8a1c1c;
+                --mystery-purple: #2d1b4e;
+                --shadow: 0 10px 30px rgba(0,0,0,0.8);
+            }
+
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
+
             body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                font-family: 'Lato', sans-serif;
+                background-color: var(--bg-color);
+                background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('/bg.gif');
+                background-size: cover;
+                background-position: top center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
                 min-height: 100vh;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 padding: 20px;
+                color: var(--text-primary);
             }
+
             .container {
-                background: white;
-                border-radius: 20px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                background: var(--card-bg);
+                border: 1px solid var(--gold-dim);
+                border-radius: 4px;
+                box-shadow: 0 0 20px rgba(0,0,0,0.9), 0 0 10px rgba(212, 175, 55, 0.1);
                 padding: 40px;
-                max-width: 600px;
+                max-width: 650px;
                 width: 100%;
+                position: relative;
             }
+            
+            /* Decorative Corners */
+            .container::before, .container::after {
+                content: '';
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                border: 2px solid var(--gold-accent);
+                transition: all 0.3s ease;
+            }
+            .container::before { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+            .container::after { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
             h1 {
-                color: #667eea;
+                font-family: 'Cinzel', serif;
+                color: var(--gold-accent);
                 text-align: center;
-                margin-bottom: 10px;
-                font-size: 2em;
+                margin-bottom: 5px;
+                font-size: 2.5em;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                text-shadow: 2px 2px 4px #000;
             }
+
             .subtitle {
+                font-family: 'Playfair Display', serif;
                 text-align: center;
-                color: #666;
-                margin-bottom: 30px;
-                font-size: 0.9em;
+                color: var(--text-secondary);
+                margin-bottom: 35px;
+                font-size: 1.1em;
+                font-style: italic;
+                letter-spacing: 1px;
             }
+
             .tech-stack {
                 display: flex;
                 justify-content: center;
-                gap: 15px;
+                gap: 12px;
                 margin-bottom: 30px;
                 flex-wrap: wrap;
+                opacity: 0.8;
             }
+
             .tech-badge {
-                background: #f0f4ff;
-                color: #667eea;
-                padding: 6px 12px;
-                border-radius: 20px;
-                font-size: 0.85em;
-                font-weight: 600;
+                background: rgba(0,0,0,0.4);
+                color: var(--text-secondary);
+                border: 1px solid #333;
+                padding: 4px 10px;
+                border-radius: 2px;
+                font-size: 0.75em;
+                font-family: monospace;
+                text-transform: uppercase;
             }
+
             .form-group {
-                margin-bottom: 20px;
+                margin-bottom: 25px;
             }
+
             label {
                 display: block;
-                margin-bottom: 8px;
-                font-weight: 600;
-                color: #333;
+                margin-bottom: 10px;
+                font-family: 'Cinzel', serif;
+                color: var(--gold-accent);
+                font-size: 0.9em;
+                letter-spacing: 1px;
             }
-            input {
+
+            input, select {
                 width: 100%;
-                padding: 14px;
-                border: 2px solid #e0e0e0;
-                border-radius: 10px;
+                padding: 15px;
+                background: rgba(0,0,0,0.6);
+                border: 1px solid #444;
+                border-left: 3px solid var(--gold-dim);
+                color: #fff;
+                font-family: 'Lato', sans-serif;
                 font-size: 16px;
-                transition: border-color 0.3s;
+                transition: all 0.3s;
             }
-            input:focus {
+
+            input:focus, select:focus {
                 outline: none;
-                border-color: #667eea;
+                border-color: var(--gold-accent);
+                background: rgba(20,20,20,0.8);
+                box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
             }
+
             .status {
                 padding: 15px;
-                border-radius: 10px;
-                margin-bottom: 20px;
-                font-weight: 500;
+                margin-bottom: 25px;
+                font-family: 'Playfair Display', serif;
                 text-align: center;
+                letter-spacing: 1px;
+                border: 1px solid transparent;
+                background: rgba(0,0,0,0.3);
             }
-            .status.info {
-                background: #dbeafe;
-                color: #1e40af;
-            }
-            .status.success {
-                background: #d1fae5;
-                color: #065f46;
-            }
-            .status.error {
-                background: #fee2e2;
-                color: #991b1b;
-            }
-            .status.warning {
-                background: #fef3c7;
-                color: #92400e;
-            }
+
+            .status.info { color: var(--text-secondary); border-color: #444; }
+            .status.success { color: #4caf50; border-color: #1b5e20; background: rgba(27, 94, 32, 0.1); text-shadow: 0 0 5px #4caf50; }
+            .status.error { color: #e57373; border-color: var(--blood-red); background: rgba(183, 28, 28, 0.1); }
+            .status.warning { color: #ffb74d; border-color: #e65100; }
+
             button {
                 width: 100%;
-                padding: 16px;
-                border: none;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: 600;
+                padding: 18px;
+                border: 1px solid var(--gold-dim);
+                background: linear-gradient(to bottom, #1a1a1a, #000);
+                color: var(--gold-accent);
+                font-family: 'Cinzel', serif;
+                font-size: 1.1em;
+                text-transform: uppercase;
+                letter-spacing: 2px;
                 cursor: pointer;
                 transition: all 0.3s;
-                margin-bottom: 10px;
+                margin-bottom: 15px;
+                position: relative;
+                overflow: hidden;
             }
-            .btn-primary {
-                background: #667eea;
-                color: white;
+
+            button::before {
+                content: '';
+                position: absolute;
+                top: 0; left: -100%;
+                width: 100%; height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+                transition: 0.5s;
             }
-            .btn-primary:hover:not(:disabled) {
-                background: #5568d3;
-                transform: translateY(-2px);
-                box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+
+            button:hover:not(:disabled)::before {
+                left: 100%;
             }
+
+            button:hover:not(:disabled) {
+                border-color: var(--gold-accent);
+                box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+                text-shadow: 0 0 5px var(--gold-accent);
+            }
+
             .btn-danger {
-                background: #ef4444;
-                color: white;
+                border-color: var(--blood-red);
+                color: #ff5252;
             }
+
             .btn-danger:hover:not(:disabled) {
-                background: #dc2626;
-                transform: translateY(-2px);
-                box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+                border-color: #ff1744;
+                box-shadow: 0 0 15px rgba(255, 23, 68, 0.3);
+                text-shadow: 0 0 5px #ff1744;
             }
+
             button:disabled {
-                opacity: 0.5;
+                opacity: 0.3;
                 cursor: not-allowed;
-                transform: none !important;
+                border-color: #333;
+                color: #555;
             }
+
             .participants {
-                background: #f9fafb;
-                border: 2px solid #e5e7eb;
-                border-radius: 10px;
+                background: rgba(0,0,0,0.5);
+                border: 1px solid #333;
                 padding: 15px;
-                margin-top: 20px;
-                font-size: 14px;
+                margin-top: 25px;
             }
+
             .participants h3 {
+                color: var(--text-secondary);
+                font-family: 'Cinzel', serif;
+                font-size: 0.9em;
+                border-bottom: 1px solid #333;
+                padding-bottom: 5px;
                 margin-bottom: 10px;
-                color: #374151;
-                font-size: 14px;
             }
+
             .participant {
                 padding: 8px;
-                background: white;
-                border-radius: 6px;
-                margin-bottom: 6px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
+                border-bottom: 1px solid #222;
+                color: #bbb;
+                font-size: 0.9em;
             }
+
             .participant.agent {
-                background: #dcfce7;
+                color: var(--gold-accent);
+                text-shadow: 0 0 2px var(--gold-dim);
             }
+
             .audio-visualizer {
                 height: 60px;
-                background: #f0f4ff;
-                border-radius: 10px;
-                margin-top: 20px;
+                background: rgba(0,0,0,0.3);
+                border: 1px solid #333;
+                margin-top: 25px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 4px;
+                gap: 5px;
                 padding: 0 20px;
             }
+
             .bar {
-                width: 4px;
-                background: #667eea;
-                border-radius: 2px;
-                transition: height 0.1s;
+                width: 3px;
+                background: #444;
+                box-shadow: 0 0 2px #000;
+                transition: height 0.05s ease;
             }
+
             .speaking {
-                background: #10b981 !important;
+                background: var(--gold-accent) !important;
+                box-shadow: 0 0 8px var(--gold-accent);
             }
-            @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
-            }
-            .recording {
-                animation: pulse 1.5s infinite;
-            }
-            .debug {
-                background: #f3f4f6;
-                border: 1px solid #d1d5db;
-                border-radius: 8px;
-                padding: 10px;
-                margin-top: 15px;
-                font-size: 12px;
-                font-family: monospace;
-                max-height: 200px;
-                overflow-y: auto;
-            }
-            .debug-entry {
-                padding: 4px 0;
-                border-bottom: 1px solid #e5e7eb;
-            }
+
             .kb-section {
-                background: #f0f9ff;
-                border: 2px solid #0ea5e9;
-                border-radius: 15px;
-                padding: 25px;
+                background: rgba(10, 10, 15, 0.6);
+                border: 1px solid var(--mystery-purple);
+                padding: 20px;
                 margin-bottom: 30px;
+                position: relative;
             }
-            .kb-section h2 {
-                color: #0369a1;
-                margin-bottom: 10px;
-                font-size: 1.3em;
+            .kb-section::before {
+                content: 'CASE FILES';
+                position: absolute;
+                top: -10px;
+                left: 20px;
+                background: var(--card-bg);
+                padding: 0 10px;
+                font-family: 'Cinzel', serif;
+                font-size: 0.8em;
+                color: var(--mystery-purple);
             }
-            .kb-section p {
-                color: #666;
-                margin-bottom: 20px;
-                font-size: 0.9em;
-            }
+
             .section-divider {
-                border-top: 2px solid #e5e7eb;
-                padding-top: 30px;
+                border-top: 1px solid #333;
+                text-align: center;
+                padding-top: 20px;
+                margin-top: 20px;
             }
             .section-divider h2 {
-                color: #667eea;
-                margin-bottom: 20px;
-                font-size: 1.3em;
+                color: var(--text-secondary);
+                font-family: 'Cinzel', serif;
+                font-size: 1.2em;
+                display: inline-block;
+                background: var(--card-bg);
+                position: relative;
+                top: -32px;
+                padding: 0 15px;
+            }
+
+            .debug {
+                background: #000;
+                border: 1px solid #333;
+                color: #0f0;
+                margin-top: 15px;
+                font-family: 'Courier New', monospace;
             }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>🤖 AI Voice Agent</h1>
-            <p class="subtitle">Talk naturally with an AI assistant</p>
+            <h1>🕵️‍♂️ Moriarty's Game</h1>
+            <p class="subtitle">"The game is afoot, my dear detective..."</p>
             
             <div class="tech-stack">
                 <span class="tech-badge">🎤 Deepgram</span>
@@ -401,13 +481,13 @@ async def demo_page():
             </div>
 
             <!-- Crime Scene Injection -->
-            <div class="kb-section" style="margin-top: 20px; border-color: #7c3aed; background: #faf5ff;">
-                <h2 style="color: #6d28d9;">🕵️‍♀️ Crime Scene Settings</h2>
+            <div class="kb-section">
+                <h2 style="color: var(--gold-accent);">🕵️‍♀️ Crime Scene Settings</h2>
                 
                 <!-- Scenario Preset -->
                 <div class="form-group">
                     <label>Scenario Preset</label>
-                    <select id="scenarioPreset" onchange="applyPreset()" style="width: 100%; padding: 14px; border: 2px solid #7c3aed; border-radius: 10px; background: #fff;">
+                    <select id="scenarioPreset" onchange="applyPreset()" style="background: rgba(0,0,0,0.6); border: 1px solid #444; color: #fff;">
                         <option value="custom">Custom</option>
                         <option value="indian_kidnap">Moriarty's Kidnapping (Indian Edition)</option>
                         <option value="indian_bomb">Moriarty's Bombing Plot (Indian Edition)</option>
@@ -416,15 +496,15 @@ async def demo_page():
 
                 <div class="form-group">
                     <label>Crime Type</label>
-                    <input type="text" id="crimeType" placeholder="e.g. Bank Heist, Murder Mystery">
+                    <input type="text" id="crimeType" placeholder="e.g. Bank Heist, Murder Mystery" style="color: #fff;">
                 </div>
                 <div class="form-group">
                     <label>Victim Name (if applicable)</label>
-                    <input type="text" id="victimName" placeholder="e.g. Priya, Rahul" value="">
+                    <input type="text" id="victimName" placeholder="e.g. Priya, Rahul" value="" style="color: #fff;">
                 </div>
                 <div class="form-group">
                     <label>Complexity</label>
-                    <select id="crimeComplexity" style="width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px;">
+                    <select id="crimeComplexity" style="background: rgba(0,0,0,0.6); border: 1px solid #444; color: #fff;">
                         <option value="">Normal</option>
                         <option value="Low">Low</option>
                         <option value="High">High</option>
@@ -433,14 +513,14 @@ async def demo_page():
                 </div>
                 <div class="form-group">
                     <label>Your Role</label>
-                    <input type="text" id="userRole" placeholder="e.g. Detective, Suspect" value="Detective">
+                    <input type="text" id="userRole" placeholder="e.g. Detective, Suspect" value="Detective" style="color: #fff;">
                 </div>
                 <!-- Volume Control -->
                 <div class="form-group">
                     <label>Background Music Volume (0 - 1)</label>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <input type="range" id="bgVolume" min="0" max="1" step="0.1" value="0.2" oninput="document.getElementById('volValue').innerText = this.value">
-                        <span id="volValue">0.2</span>
+                        <span id="volValue" style="color: var(--gold-accent)">0.2</span>
                     </div>
                 </div>
 

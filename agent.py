@@ -151,17 +151,23 @@ class WatsonActions:
 
                 stream = tts.synthesize(text=watson_response_text)
                 
+                total_duration = 0.0
                 async for chunk in stream:
                     # chunk is SynthesizedAudio
                     # It has .frame which is rtc.AudioFrame
                     if chunk.frame:
                         await source.capture_frame(chunk.frame)
-                        
-            # Simple heuristic to prevent Moriarty from speaking over Watson
-            # Approx 15 chars per second
-            estimated_duration = len(watson_response_text) / 15.0
-            logger.info(f"Generated {len(watson_response_text)} chars. Waiting {estimated_duration:.2f}s for playback...")
-            await asyncio.sleep(estimated_duration)
+                        # Calculate duration: samples / sample_rate
+                        # AudioFrame usually has sample_rate and samples_per_channel (or num_channels * samples_per_channel if captured differently, but here we assume mono 1 channel or consistent)
+                        if chunk.frame.sample_rate > 0:
+                            duration_s = chunk.frame.samples_per_channel / chunk.frame.sample_rate
+                            total_duration += duration_s
+
+            # Add a small buffer to ensure playback finishes on client side
+            buffer_s = 0.5 
+            wait_time = total_duration + buffer_s
+            logger.info(f"Generated audio duration: {total_duration:.2f}s. Waiting {wait_time:.2f}s for playback...")
+            await asyncio.sleep(wait_time)
 
             # Clean up
             await self.room.local_participant.unpublish_track(publication.sid)
